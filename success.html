@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>支付成功</title>
+</head>
+<body>
+
+<h1>支付成功！</h1>
+
+<script>
+
+async function savePayment() {
+
+  const res = await fetch(
+    "/api/save-payment",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        email: "test@test.com",
+        amount: "9.9",
+        status: "paid"
+      })
+    }
+  );
+
+  const data = await res.json();
+
+  console.log(data);
+}
+
+savePayment();
+
+</script>
+
+</body>
+</html>
