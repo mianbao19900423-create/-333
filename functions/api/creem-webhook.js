@@ -6,10 +6,13 @@ export async function onRequestPost(context) {
 
     const body = await context.request.json();
 
-    console.log(body);
+    console.log(JSON.stringify(body));
 
-    // 只记录支付成功事件
-    if (body.event !== "payment.completed") {
+    // 只处理支付完成
+    if (
+      body.event !== "payment.completed" &&
+      body.event !== "checkout.completed"
+    ) {
 
       return Response.json({
         ignored: true
@@ -17,16 +20,50 @@ export async function onRequestPost(context) {
 
     }
 
-    // 提取真实数据
+    // 防止重复插入
+    const orderId =
+      body.data?.id ||
+      body.data?.payment_id ||
+      crypto.randomUUID();
+
+    // 邮箱
     const email =
-      body.data?.customer_email || "unknown";
+      body.data?.customer_email ||
+      body.data?.customer?.email ||
+      "unknown";
 
-    const amount =
-      body.data?.amount || 0;
+    // 金额（兼容多种字段）
+    let amount =
+      body.data?.amount ||
+      body.data?.total ||
+      body.data?.price ||
+      body.amount ||
+      0;
 
-    const status =
-      "paid";
+    // 如果是 cents → 转美元
+    if (amount > 1000) {
+      amount = amount / 100;
+    }
 
+    // 先检查是否已存在
+    const existing = await db
+      .prepare(`
+        SELECT id FROM payments
+        WHERE status = ?
+        LIMIT 1
+      `)
+      .bind(orderId)
+      .first();
+
+    if (existing) {
+
+      return Response.json({
+        duplicate: true
+      });
+
+    }
+
+    // 写入数据库
     await db
       .prepare(`
         INSERT INTO payments
@@ -36,7 +73,7 @@ export async function onRequestPost(context) {
       .bind(
         email,
         amount,
-        status
+        orderId
       )
       .run();
 
