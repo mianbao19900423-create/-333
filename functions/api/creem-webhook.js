@@ -8,23 +8,31 @@ export async function onRequestPost(context) {
 
     console.log(body);
 
+    // 只记录支付成功事件
+    if (body.event !== "payment.completed") {
+
+      return Response.json({
+        ignored: true
+      });
+
+    }
+
+    // 提取真实数据
     const email =
-      body.customer?.email || "unknown";
+      body.data?.customer_email || "unknown";
 
     const amount =
-      body.amount || "0";
+      body.data?.amount || 0;
 
     const status =
-      body.status || "paid";
+      "paid";
 
     await db
-      .prepare(
-        `
+      .prepare(`
         INSERT INTO payments
         (email, amount, status)
         VALUES (?, ?, ?)
-        `
-      )
+      `)
       .bind(
         email,
         amount,
